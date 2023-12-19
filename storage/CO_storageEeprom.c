@@ -97,13 +97,13 @@ static ODR_t restoreEeprom(CO_storage_entry_t *entry,
 
     switch(entry->subIndexOD) {
       case 2: ; // COM_PERSIST_COMM
-      memcpy(&OD_PERSIST_COMM, &OD_PERSIST_COMM_FACTORY, sizeof(OD_PERSIST_COMM));
-	writeOk = true;
+      	  memcpy(&OD_PERSIST_COMM, &OD_PERSIST_COMM_FACTORY, sizeof(OD_PERSIST_COMM));
+		  writeOk = true;
       break;
 
       case 5: ; // COM_PERSIST_LAYER
-	memcpy(&OD_PERSIST_LAYER, &OD_PERSIST_LAYER_FACTORY, sizeof(OD_PERSIST_LAYER));
-	writeOk = true;
+      	  memcpy(&OD_PERSIST_LAYER, &OD_PERSIST_LAYER_FACTORY, sizeof(OD_PERSIST_LAYER));
+		  writeOk = true;
       break;
 
     }
@@ -149,9 +149,7 @@ CO_ReturnError_t CO_storageEeprom_init(CO_storage_t *storage,
     bool_t eepromOvf = false;
 
     /* verify arguments */
-    if (storage == NULL || entries == NULL || entriesCount == 0
-        || storageInitError == NULL
-    ) {
+    if (storage == NULL || entries == NULL || entriesCount == 0 || storageInitError == NULL) {
         return CO_ERROR_ILLEGAL_ARGUMENT;
     }
 
