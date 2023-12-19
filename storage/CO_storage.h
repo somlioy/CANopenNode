@@ -94,7 +94,11 @@ typedef enum {
     /** CANopen device saves parameters autonomously */
     CO_storage_auto = 0x02,
     /** CANopen device restores parameters on OD 1011 command  */
-    CO_storage_restore = 0x04
+    CO_storage_restore = 0x04,
+    /** CANopen device is excluded from save all command */
+    CO_storage_cmd_all_exclude = 0x08,
+    /** CANopen device is excluded from restore all command */
+    CO_storage_restore_all_exclude = 0x10
 } CO_storage_attributes_t;
 
 

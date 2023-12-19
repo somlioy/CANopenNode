@@ -59,7 +59,9 @@ static ODR_t OD_write_1010(OD_stream_t *stream, const void *buf,
     for (uint8_t i = 0; i < storage->entriesCount; i++) {
         CO_storage_entry_t *entry = &storage->entries[i];
 
-        if (stream->subIndex == 1 || entry->subIndexOD == stream->subIndex) {
+        if ((stream->subIndex == 1 && (entry->attr & CO_storage_cmd_all_exclude) == 0)
+            || entry->subIndexOD == stream->subIndex) {
+
             if (found == 0) found = 1;
             if ((entry->attr & CO_storage_cmd) != 0) {
                 ODR_t code = storage->store(entry, storage->CANmodule);
@@ -110,7 +112,9 @@ static ODR_t OD_write_1011(OD_stream_t *stream, const void *buf,
     for (uint8_t i = 0; i < storage->entriesCount; i++) {
         CO_storage_entry_t *entry = &storage->entries[i];
 
-        if (stream->subIndex == 1 || entry->subIndexOD == stream->subIndex) {
+        if ((stream->subIndex == 1 && (entry->attr & CO_storage_restore_all_exclude) == 0)
+            || entry->subIndexOD == stream->subIndex) {
+
             if (found == 0) found = 1;
             if ((entry->attr & CO_storage_restore) != 0) {
                 ODR_t code = storage->restore(entry, storage->CANmodule);

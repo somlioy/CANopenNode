@@ -25,8 +25,14 @@
 #include "storage/CO_storageEeprom.h"
 #include "storage/CO_eeprom.h"
 #include "301/crc16-ccitt.h"
+#include "OD.h"
+
 
 #if (CO_CONFIG_STORAGE) & CO_CONFIG_STORAGE_ENABLE
+#include <stdlib.h>
+
+OD_PERSIST_COMM_t OD_PERSIST_COMM_FACTORY;
+OD_PERSIST_LAYER_t OD_PERSIST_LAYER_FACTORY;
 
 /*
  * Function for writing data on "Store parameters" command - OD object 1010
@@ -36,18 +42,19 @@
 static ODR_t storeEeprom(CO_storage_entry_t *entry, CO_CANmodule_t *CANmodule) {
     bool_t writeOk;
 
-    /* save data to the eeprom */
-    CO_LOCK_OD(CANmodule);
     writeOk = CO_eeprom_writeBlock(entry->storageModule, entry->addr,
                                    entry->eepromAddr, entry->len);
     entry->crc = crc16_ccitt(entry->addr, entry->len, 0);
-    CO_UNLOCK_OD(CANmodule);
 
-    /* Verify, if data in eeprom are equal */
+    /* Verify, if data in eeprom are equal*/
     uint16_t crc_read = CO_eeprom_getCrcBlock(entry->storageModule,
                                               entry->eepromAddr, entry->len);
+
     if (entry->crc != crc_read || !writeOk) {
+	//log_printf("[ERROR]: Storing to EEPROM failed, write failed or mismatch on CRC-readback; W: 0x%X | R: 0x%X\n", entry->crc, crc_read);
         return ODR_HW;
+    } else {
+	//log_printf("[INFO]: Storing to EEPROM successfull, writing signatures\n");
     }
 
     /* Write signature (see CO_storageEeprom_init() for info) */
@@ -65,8 +72,12 @@ static ODR_t storeEeprom(CO_storage_entry_t *entry, CO_CANmodule_t *CANmodule) {
                         entry->eepromAddrSignature,
                         sizeof(signatureRead));
     if(signature != signatureRead || !writeOk) {
-        return ODR_HW;
+	//log_printf("[ERROR]: Writing signatures to EEPROM failed, write failed or mismatch on CRC-readback; W: 0x%X | R: 0x%X\n", signature, signatureRead);
+	return ODR_HW;
+    } else {
+	//log_printf("[INFO]: Writing signatures to EEPROM successfull\n");
     }
+
 
     return ODR_OK;
 }
@@ -81,16 +92,35 @@ static ODR_t restoreEeprom(CO_storage_entry_t *entry,
                            CO_CANmodule_t *CANmodule)
 {
     (void) CANmodule;
-    bool_t writeOk;
+    bool_t writeOk = false;
 
-    /* Write empty signature */
+
+    switch(entry->subIndexOD) {
+      case 2: ; // COM_PERSIST_COMM
+      memcpy(&OD_PERSIST_COMM, &OD_PERSIST_COMM_FACTORY, sizeof(OD_PERSIST_COMM));
+	writeOk = true;
+      break;
+
+      case 5: ; // COM_PERSIST_LAYER
+	memcpy(&OD_PERSIST_LAYER, &OD_PERSIST_LAYER_FACTORY, sizeof(OD_PERSIST_LAYER));
+	writeOk = true;
+      break;
+
+    }
+
+    if (writeOk)
+      storeEeprom(entry, CANmodule);
+
+
+    /* Write empty signature
     uint32_t signature = 0xFFFFFFFF;
     writeOk = CO_eeprom_writeBlock(entry->storageModule,
                                    (uint8_t *)&signature,
                                    entry->eepromAddrSignature,
                                    sizeof(signature));
+   */
 
-    /* verify signature and protection */
+    /* verify signature and protection
     uint32_t signatureRead;
     CO_eeprom_readBlock(entry->storageModule,
                         (uint8_t *)&signatureRead,
@@ -98,7 +128,8 @@ static ODR_t restoreEeprom(CO_storage_entry_t *entry,
                         sizeof(signatureRead));
     if(signature != signatureRead || !writeOk) {
         return ODR_HW;
-    }
+    }*/
+
 
     return ODR_OK;
 }
@@ -131,6 +162,11 @@ CO_ReturnError_t CO_storageEeprom_init(CO_storage_t *storage,
         *storageInitError = 0xFFFFFFFF;
         return CO_ERROR_DATA_CORRUPT;
     }
+
+
+    memcpy(&OD_PERSIST_COMM_FACTORY, &OD_PERSIST_COMM, sizeof(OD_PERSIST_COMM));
+    memcpy(&OD_PERSIST_LAYER_FACTORY, &OD_PERSIST_LAYER, sizeof(OD_PERSIST_LAYER));
+
 
     /* initialize storage and OD extensions */
     ret = CO_storage_init(storage,
@@ -193,9 +229,9 @@ CO_ReturnError_t CO_storageEeprom_init(CO_storage_t *storage,
         /* Verify two signatures */
         bool_t dataCorrupt = false;
         if (signatureInEeprom != signatureOfEntry) {
+
             dataCorrupt = true;
-        }
-        else {
+        } else {
             /* Read data into storage location */
             CO_eeprom_readBlock(entry->storageModule, entry->addr,
                                 entry->eepromAddr, entry->len);
@@ -239,18 +275,9 @@ void CO_storageEeprom_auto_process(CO_storage_t *storage, bool_t saveAll) {
 
         if (saveAll) {
             /* update all bytes */
-            for (size_t i = 0; i < entry->len; ) {
-                uint8_t dataByteToUpdate = ((uint8_t *)(entry->addr))[i];
-                size_t eepromAddr = entry->eepromAddr + i;
-                if (CO_eeprom_updateByte(entry->storageModule,
-                                         dataByteToUpdate,
-                                         eepromAddr)
-                ) {
-                    i++;
-                }
-            }
-        }
-        else {
+            CO_eeprom_updateBlock(entry->storageModule, entry->addr, entry->eepromAddr, entry->len);
+
+        } else {
             /* update one data byte and if successful increment to next */
             uint8_t dataByteToUpdate = ((uint8_t*)(entry->addr))[entry->offset];
             size_t eepromAddr = entry->eepromAddr + entry->offset;

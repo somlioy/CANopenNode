@@ -123,6 +123,8 @@ uint16_t CO_eeprom_getCrcBlock(void *storageModule,
 bool_t CO_eeprom_updateByte(void *storageModule, uint8_t data,
                             size_t eepromAddr);
 
+bool_t CO_eeprom_updateBlock(void *storageModule, uint8_t *data,
+                            size_t eepromAddr, size_t len);
 
 /** @} */ /* CO_storage_eeprom */
 
